@@ -55,7 +55,8 @@ MIDDLEWARE = [
 STATIC_ROOT = BASE_DIR/'staticfiles'
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:9000"
+    "http://localhost:9000",
+    "https://inventory-f.onrender.com/"
   
 ]
 
