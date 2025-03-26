@@ -8,7 +8,7 @@ const $q = useQuasar();
 
 const columns = [
   { name: 'name', label: 'Product Name', field: 'name', sortable: true, align: 'left' },
-  { name: 'category', label: 'Category', field: row => row.category?.name || 'N/A', sortable: true, align: 'left' },
+  { name: 'category', label: 'Category',  field: row => row.category?.name || 'N/A', sortable: true, align: 'left' },
   { 
     name: 'price', 
     label: 'Price (GHS)', 
@@ -36,29 +36,34 @@ const salesCounts = ref({ daily_sales: 0, weekly_sales: 0, monthly_sales: 0 });
 
 const fetchSalesSummary = async () => {
   try {
+
+
+    // Fetch sales counts (daily, weekly, monthly)
     const salesCountsResponse = await api.get("sales/counts/");
     salesCounts.value = salesCountsResponse.data || { daily_sales: 0, weekly_sales: 0, monthly_sales: 0 };
   } catch (error) {
     console.error("Error fetching sales summary:", error);
-    $q.notify({ type: 'negative', message: 'Failed to fetch sales summary.' });
   }
 };
+
+
 
 const fetchProducts = async () => {
   try {
     const response = await api.get("products/");
-    products.value = response.data;
-    $q.notify({ type: 'positive', message: 'Products loaded successfully!' });
+    products.value = response.data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); 
+    
   } catch (error) {
-    console.error("Error fetching products:", error);
-    $q.notify({ type: 'negative', message: 'Failed to load products.' });
+
   }
 };
+
 
 const openSaleDialog = (product) => {
   selectedProduct.value = product;
   showSaleDialog.value = true;
 };
+
 
 const editProduct = (product) => {
   selectedProduct.value = { 
@@ -68,17 +73,22 @@ const editProduct = (product) => {
   showEditDialog.value = true;
 };
 
-const categories = ref([]);
+
+const categories = ref([]); // Store available categories
 
 const fetchCategories = async () => {
   try {
     const response = await api.get("categories/");
     categories.value = response.data;
   } catch (error) {
-    console.error("Error fetching categories:", error);
-    $q.notify({ type: 'negative', message: 'Failed to load categories.' });
+   
   }
 };
+
+
+
+
+
 
 const deleteProduct = (id) => {
   selectedProductId.value = id;
@@ -87,20 +97,24 @@ const deleteProduct = (id) => {
 
 const addProduct = async () => {
   if (!newProduct.value.name || !newProduct.value.category || !newProduct.value.price || !newProduct.value.quantity) {
-    $q.notify({ type: 'warning', message: 'All fields are required!' });
+    $q.notify({
+      type: 'warning',
+      message: 'All fields are required!',
+    });
     return;
   }
 
   try {
     await api.post("products/add/", newProduct.value);
+    $q.notify({ type: 'positive', message: 'Product Added Successfully!' });
     fetchProducts();
     showAddDialog.value = false;
-    $q.notify({ type: 'positive', message: 'Product added successfully!' });
   } catch (error) {
-    console.error(error);
     $q.notify({ type: 'negative', message: 'Error adding product.' });
+    console.error(error);
   }
 };
+
 
 const updateProduct = async () => {
   if (!selectedProduct.value.name || !selectedProduct.value.category || !selectedProduct.value.price || !selectedProduct.value.quantity) {
@@ -111,36 +125,36 @@ const updateProduct = async () => {
   try {
     await api.put(`products/edit/${selectedProduct.value.id}/`, {
       ...selectedProduct.value,
-      category: selectedProduct.value.category,
+      category: selectedProduct.value.category, // Already stored as an ID
+      
     });
+    $q.notify({ type: 'positive', message: 'Product Updated Succesfully!' });
     showEditDialog.value = false;
     fetchProducts();
-    $q.notify({ type: 'positive', message: 'Product updated successfully!' });
   } catch (error) {
-    console.error(error);
     $q.notify({ type: 'negative', message: 'Error updating product.' });
+    console.error(error);
   }
 };
+
+
+
 
 const confirmDelete = async () => {
-  try {
-    await api.delete(`products/delete/${selectedProductId.value}/`);
-    showDeleteDialog.value = false;
-    fetchProducts();
-    $q.notify({ type: 'positive', message: 'Product deleted successfully!' });
-  } catch (error) {
-    console.error(error);
-    $q.notify({ type: 'negative', message: 'Error deleting product.' });
-  }
+
+  await api.delete(`products/delete/${selectedProductId.value}/`);
+  $q.notify({ type: 'positive', message: 'Product Deleted!' });
+  showDeleteDialog.value = false;
+  fetchProducts();
 };
 
+
 onMounted(() => {
-  fetchProducts();
-  fetchCategories();
+  fetchProducts();  // Fetch products
+  fetchCategories(); // Fetch categories
   fetchSalesSummary();
 });
 </script>
-
 
 <template>
 

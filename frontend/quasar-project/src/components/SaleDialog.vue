@@ -82,6 +82,18 @@ const recordSale = async () => {
     console.error("Error recording sale:", error);
   }
 };
+const filteredProducts = ref([...products.value]);
+
+const filterProducts = (val, update) => {
+  if (val === '') {
+    update(() => { filteredProducts.value = products.value; });
+    return;
+  }
+  const needle = val.toLowerCase();
+  update(() => {
+    filteredProducts.value = products.value.filter(p => p.name.toLowerCase().includes(needle));
+  });
+};
 
 </script>
 
@@ -97,15 +109,19 @@ const recordSale = async () => {
       <q-card-section class="q-gutter-md">
         <div v-for="(item, index) in saleItems" :key="index" class="row items-center q-mb-md">
           <q-select
-            v-model="item.product"
-            label="Select Product"
-            :options="products"
-            option-value="id"
-            option-label="name"
-            dense
-            outlined
-            class="col-7 q-mr-sm"
-          />
+  v-model="item.product"
+  label="Select Product"
+  :options="filteredProducts"
+  option-value="id"
+  option-label="name"
+  dense
+  outlined
+  class="col-7 q-mr-sm"
+  use-input
+  input-debounce="300"
+  @filter="filterProducts"
+/>
+
           <q-input
             v-model="item.quantity"
             label="Qty"
