@@ -1,3 +1,58 @@
+<script setup>
+import { ref, onMounted } from "vue";
+import { useQuasar } from "quasar";
+import { api } from "src/boot/axios";
+
+const $q = useQuasar();
+const sales = ref([{ product: null, quantity_sold: 1 }]);
+const products = ref([]);
+const selectedProductStock = ref([]);
+
+onMounted(async () => {
+  try {
+    const res = await api.get("products/");
+    products.value = res.data;
+   
+  } catch (error) {
+    console.error("Error fetching products:", error);
+    $q.notify({ type: 'negative', message: 'Failed to load products.' });
+  }
+});
+
+const updateStock = (index, productId) => {
+  const product = products.value.find(p => p.id === productId);
+  selectedProductStock.value[index] = product ? product.quantity : null;
+};
+
+const addItem = () => {
+  sales.value.push({ product: null, quantity_sold: 1 });
+};
+
+const removeItem = (index) => {
+  sales.value.splice(index, 1);
+  selectedProductStock.value.splice(index, 1);
+};
+
+const recordSale = async () => {
+  if (sales.value.some(s => !s.product || !s.quantity_sold || s.quantity_sold < 1)) {
+    $q.notify({ type: 'warning', message: 'Ensure all items have a product and valid quantity!' });
+    return;
+  }
+
+  try {
+    await api.post("sales/record/", { items: sales.value });
+    $q.notify({ type: 'positive', message: 'Sale recorded successfully!' });
+    sales.value = [{ product: null, quantity_sold: 1 }]; // Reset after successful sale
+  } catch (error) {
+    console.error(error.response?.data?.error || "Error processing sale");
+    $q.notify({ type: 'negative', message: error.response?.data?.error || 'Failed to record sale.' });
+  }
+};
+</script>
+
+
+
+
 <template>
     <div class="q-pa-md">
       <q-toolbar class="text-primary q-pb-md">
@@ -51,41 +106,7 @@
     </div>
   </template>
   
-  <script setup>
-  import { ref, onMounted } from "vue";
-  import { api } from "src/boot/axios";
-  
-  const sales = ref([{ product: null, quantity_sold: 1 }]);
-  const products = ref([]);
-  const selectedProductStock = ref([]);
-  
-  onMounted(async () => {
-    const res = await api.get("products/");
-    products.value = res.data;
-  });
-  
-  const updateStock = (index, productId) => {
-    const product = products.value.find(p => p.id === productId);
-    selectedProductStock.value[index] = product ? product.quantity : null;
-  };
-  
-  const addItem = () => {
-    sales.value.push({ product: null, quantity_sold: 1 });
-  };
-  
-  const removeItem = (index) => {
-    sales.value.splice(index, 1);
-    selectedProductStock.value.splice(index, 1);
-  };
-  
-  const recordSale = async () => {
-    try {
-      await api.post("sales/record/", { items: sales.value });
-    } catch (error) {
-      console.error(error.response?.data?.error || "Error processing sale");
-    }
-  };
-  </script>
+
   
   <style scoped>
   .q-toolbar-title {
