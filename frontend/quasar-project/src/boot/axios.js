@@ -7,13 +7,13 @@ import axios from 'axios'
 // good idea to move this instance creation inside of the
 // "export default () => {}" function below (which runs individually
 // for each client)
-// const api = axios.create({ baseURL: 'https://inventory-w5rc.onrender.com/api/' })
+
 
 
 
 
 const api = axios.create({
-  baseURL: process.env.API_BASE_URL || 'http://127.0.0.1:8000/api/',
+  baseURL: process.env.API_BASE_URL || 'https://inventory-w5rc.onrender.com/api/',
   timeout: 10000, // 10 second timeout
   headers: {
     'Content-Type': 'application/json',
