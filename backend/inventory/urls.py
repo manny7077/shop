@@ -13,4 +13,9 @@ urlpatterns = [
     path("sales/record/", views.recordSale),
     path('sales/counts/', views.salesCount),
     path("categories/", views.listCategories),
+
+
+    path("login/", views.loginView),
+    path("logout/", views.logoutView),
+    path("shop/info/", views.getShopInfo),
 ]

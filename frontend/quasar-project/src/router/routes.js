@@ -3,8 +3,9 @@ const routes = [
     path: '/',
     component: () => import('layouts/MainLayout.vue'),
     children: [
-      { path: '', component: () => import('pages/ProductsPage.vue') },
+      { path: '', component: () => import('pages/ProductsPage.vue'), meta: { requiresAuth: true } },
       { path: 'sales/', component: () => import('pages/SalesPage.vue') },
+      { path: 'login/', component: () => import('pages/Login.vue') },
     ]
   },
 

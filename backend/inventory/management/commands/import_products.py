@@ -31,16 +31,17 @@ class Command(BaseCommand):
                 product, created = Product.objects.get_or_create(
                     name=name.strip(),
                     defaults={
-                        "category_id": 7,  # Assign category ID 1
+                        "category_id": 11,  # Assign category ID 1
                         "quantity": int(quantity),
                         "price": float(price),
+                        "shop_id": 3
                     }
                 )
 
                 if created:
                     products_created += 1
 
-            self.stdout.write(self.style.SUCCESS(f"Successfully imported {products_created} products with category ID 4."))
+            self.stdout.write(self.style.SUCCESS(f"Successfully imported {products_created} products with category ID 7."))
 
         except Exception as e:
             self.stderr.write(self.style.ERROR(f"Error: {str(e)}"))

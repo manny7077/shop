@@ -3,6 +3,15 @@ from django.contrib.auth.models import User
 
 # Create your models here
 
+class Shop(models.Model):
+    name = models.CharField(max_length=255)
+    owner = models.ManyToManyField(User)
+
+    def __str__(self):
+        return self.name
+
+
+
 class Category(models.Model):
     name = models.CharField(max_length=255, unique=True)
     
@@ -10,6 +19,7 @@ class Category(models.Model):
         return self.name
 
 class Product(models.Model):
+    shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name="products")  # NEW
     name = models.CharField(max_length=255)
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True)
     quantity = models.PositiveIntegerField(default=0)
@@ -20,15 +30,16 @@ class Product(models.Model):
     def __str__(self):
         return f"{self.name} - {self.quantity} in stock"
 
+
 class Sale(models.Model):
+    shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name="sales")  # NEW
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     quantity_sold = models.PositiveIntegerField()
     total_price = models.DecimalField(max_digits=10, decimal_places=2)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def save(self, *args, **kwargs):
-        """Reduce product stock when a sale is recorded"""
-        if self.pk is None:  # Ensure stock is reduced only on new sales
+        if self.pk is None:
             if self.product.quantity >= self.quantity_sold:
                 self.product.quantity -= self.quantity_sold
                 self.product.save()
@@ -38,6 +49,7 @@ class Sale(models.Model):
 
     def __str__(self):
         return f"Sale: {self.quantity_sold} x {self.product.name} on {self.created_at}"
+
 
 
 class StockAlert(models.Model):

@@ -42,41 +42,77 @@
     </div>
   </template>
   
-  <script setup>
-  import { ref, onMounted } from "vue";
-  import { api } from "src/boot/axios";
-  
-  const sales = ref([{ product: null, quantity_sold: 1 }]);
-  const products = ref([]);
-  const selectedProductStock = ref([]);
-  
-  onMounted(async () => {
+<script setup>
+import { ref, onMounted } from "vue";
+import { api } from "src/boot/axios";
+
+// Reactive variables
+const sales = ref([{ product: null, quantity_sold: 1 }]);
+const products = ref([]);
+const selectedProductStock = ref([]);
+const shopId = ref(null);  // Store shop ID from the new endpoint
+const shopName = ref(null);  // Store shop name from the new endpoint
+const fetchSalesSummary = async () => {
+  try {
+
+
+    // Fetch sales counts (daily, weekly, monthly)
+    const salesCountsResponse = await api.get("sales/counts/");
+    salesCounts.value = salesCountsResponse.data || { daily_sales: 0, weekly_sales: 0, monthly_sales: 0 };
+  } catch (error) {
+    console.error("Error fetching sales summary:", error);
+  }
+};
+
+// Fetch shop info when the component is mounted
+onMounted(async () => {
+  try {
+    const shopInfoRes = await api.get("shop/info/");  // Call the new view to get shop details
+    shopId.value = shopInfoRes.data.shop_id;  // Store the shop ID
+    shopName.value = shopInfoRes.data.shop_name;  // Store the shop name
+
     const res = await api.get("products/");
     products.value = res.data;
-  });
-  
-  const updateStock = (index, productId) => {
-    const product = products.value.find(p => p.id === productId);
-    selectedProductStock.value[index] = product ? product.quantity : null;
-  };
-  
-  const addItem = () => {
-    sales.value.push({ product: null, quantity_sold: 1 });
-  };
-  
-  const removeItem = (index) => {
-    sales.value.splice(index, 1);
-    selectedProductStock.value.splice(index, 1);
-  };
-  
-  const recordSale = async () => {
-    try {
-      await api.post("sales/record/", { items: sales.value });
-    } catch (error) {
-      console.error(error.response?.data?.error || "Error processing sale");
-    }
-  };
-  </script>
+  } catch (error) {
+    console.error("Error fetching shop info:", error.response?.data?.error || error.message);
+  }
+});
+
+// Other methods
+const updateStock = (index, productId) => {
+  const product = products.value.find(p => p.id === productId);
+  selectedProductStock.value[index] = product ? product.quantity : null;
+};
+
+const addItem = () => {
+  sales.value.push({ product: null, quantity_sold: 1 });
+};
+
+const removeItem = (index) => {
+  sales.value.splice(index, 1);
+  selectedProductStock.value.splice(index, 1);
+};
+
+const recordSale = async () => {
+  try {
+    const saleData = {
+      shop: shopId.value,  // Use the shop field instead of shop_id
+      sales: sales.value.map(item => ({
+        product_id: item.product,
+        quantity: item.quantity_sold
+      }))
+    };
+    await api.post("sales/record/", saleData);
+  } catch (error) {
+    console.error(error.response?.data?.error || "Error processing sale");
+  }
+};
+onMounted(() => {
+
+  fetchSalesSummary();
+});
+</script>
+
   
   <style scoped>
   .q-toolbar-title {

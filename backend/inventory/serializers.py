@@ -14,6 +14,8 @@ class ProductSerializer(serializers.ModelSerializer):
 
 class ProductViewSerializer(serializers.ModelSerializer):
     category = CategorySerializer(read_only=True)
+    shop_name = serializers.CharField(source="shop.name", read_only=True)
+
 
     class Meta:
         model = Product

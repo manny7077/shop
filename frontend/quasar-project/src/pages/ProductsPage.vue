@@ -3,8 +3,14 @@ import { ref, onMounted, computed } from 'vue';
 import { useQuasar } from 'quasar';
 import { api } from 'src/boot/axios';
 import SaleDialog from 'src/components/SaleDialog.vue';
+import { usePermissionStore } from 'src/stores/permission'
 
 const $q = useQuasar();
+const permission = usePermissionStore()
+// Computed property to check if the user is a Manager
+const isSalesPerson = computed(() => permission.isSalesPerson)
+const isManager = computed(() => permission.isManager)
+const isStockClerk = computed(() => permission.isStockClerk)
 
 const columns = [
   { name: 'name', label: 'Product Name', field: 'name', sortable: true, align: 'left' },
@@ -17,7 +23,8 @@ const columns = [
     align: 'left' 
   },
   { name: 'quantity', label: 'Quantity', field: 'quantity', sortable: true, align: 'left' },
-  { name: 'actions', label: 'Actions', field: 'actions', align: 'center' }
+  ...(isSalesPerson.value ? [] : [{ name: 'actions', label: 'Actions', field: 'actions', align: 'center' }])
+  
 ];
 
 const products = ref([]);
@@ -33,6 +40,10 @@ const showSaleDialog = ref(false);
 const totalRevenue = ref(0);
 const bestSellingProducts = ref([]);
 const salesCounts = ref({ daily_sales: 0, weekly_sales: 0, monthly_sales: 0 });
+const shopId = ref(null);  
+
+
+
 
 const fetchSalesSummary = async () => {
   try {
@@ -89,7 +100,6 @@ const fetchCategories = async () => {
 
 
 
-
 const deleteProduct = (id) => {
   selectedProductId.value = id;
   showDeleteDialog.value = true;
@@ -105,7 +115,13 @@ const addProduct = async () => {
   }
 
   try {
-    await api.post("products/add/", newProduct.value);
+    // Ensure shop is included in the request data
+    const productData = {
+      ...newProduct.value,
+      shop: shopId.value  // Add the shop ID (from the logged-in user)
+    };
+    
+    await api.post("products/add/", productData);
     $q.notify({ type: 'positive', message: 'Product Added Successfully!' });
     fetchProducts();
     showAddDialog.value = false;
@@ -114,6 +130,7 @@ const addProduct = async () => {
     console.error(error);
   }
 };
+
 
 
 const updateProduct = async () => {
@@ -126,9 +143,8 @@ const updateProduct = async () => {
     await api.put(`products/edit/${selectedProduct.value.id}/`, {
       ...selectedProduct.value,
       category: selectedProduct.value.category, // Already stored as an ID
-      
     });
-    $q.notify({ type: 'positive', message: 'Product Updated Succesfully!' });
+    $q.notify({ type: 'positive', message: 'Product Updated Successfully!' });
     showEditDialog.value = false;
     fetchProducts();
   } catch (error) {
@@ -136,6 +152,7 @@ const updateProduct = async () => {
     console.error(error);
   }
 };
+
 
 
 
@@ -149,11 +166,24 @@ const confirmDelete = async () => {
 };
 
 
-onMounted(() => {
-  fetchProducts();  // Fetch products
-  fetchCategories(); // Fetch categories
-  fetchSalesSummary();
+onMounted(async () => {
+  try {
+    // Fetch products, categories, and sales summary
+    await Promise.all([
+      fetchProducts(),
+      fetchCategories(),
+      fetchSalesSummary()
+    ]);
+    
+    // Fetch shop info and set shopId
+    const shopInfoRes = await api.get("shop/info/");
+    shopId.value = shopInfoRes.data.shop_id;
+  } catch (error) {
+    console.error("Error during initialization:", error);
+    $q.notify({ type: 'negative', message: 'Error initializing data.' });
+  }
 });
+
 </script>
 
 <template>
@@ -192,8 +222,9 @@ onMounted(() => {
     </q-toolbar>
 
     <div class="row q-gutter-sm">
-  <q-btn color="primary" label="Add Product" icon="add" @click="showAddDialog = true" class="q-mb-md" />
+  <q-btn v-if="isStockClerk||isManager" color="primary" label="Add Product" icon="add" @click="showAddDialog = true" class="q-mb-md" />
   <q-btn 
+    v-if="isSalesPerson||isManager"
     color="primary" 
     label="Sell Product" 
     icon="shopping_cart" 
@@ -212,8 +243,8 @@ onMounted(() => {
           <q-td v-for="col in props.cols" :key="col.name">
             <template v-if="col.name === 'actions'">
               <div class="action-buttons">
-                <q-btn color="primary" dense flat icon="edit" @click="editProduct(props.row)" />
-                <q-btn color="negative" dense flat icon="delete" @click="deleteProduct(props.row.id)" />
+                <q-btn v-if="isStockClerk||isManager" color="primary" dense flat icon="edit" @click="editProduct(props.row)" />
+                <q-btn v-if="isStockClerk||isManager" color="negative" dense flat icon="delete" @click="deleteProduct(props.row.id)" />
               </div>
             </template>
             <template v-else>

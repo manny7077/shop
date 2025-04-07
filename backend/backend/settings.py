@@ -27,6 +27,7 @@ DEBUG = True
 ALLOWED_HOSTS = [
     "inventory-w5rc.onrender.com",
     "localhost",
+    "127.0.0.1"
 ]
 
 
@@ -41,6 +42,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'inventory',
+    'rest_framework.authtoken'
 ]
 
 MIDDLEWARE = [
@@ -59,7 +61,8 @@ STATIC_ROOT = BASE_DIR/'staticfiles'
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:9000",
-    "https://inventory-f.onrender.com"
+    "https://inventory-f.onrender.com",
+    "http://127.0.0.1:8000"
   
 ]
 
@@ -135,3 +138,11 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        "rest_framework.authentication.TokenAuthentication",
+        
+       
+    ]}
