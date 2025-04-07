@@ -5,6 +5,8 @@ import { api } from 'src/boot/axios';
 import SaleDialog from 'src/components/SaleDialog.vue';
 import { usePermissionStore } from 'src/stores/permission'
 
+const initialLoading = ref(true);
+
 const $q = useQuasar();
 const permission = usePermissionStore()
 // Computed property to check if the user is a Manager
@@ -29,6 +31,7 @@ const columns = [
 
 const products = ref([]);
 const filter = ref(null);
+const loading = ref(false);
 
 const showAddDialog = ref(false);
 const showEditDialog = ref(false);
@@ -60,12 +63,17 @@ const fetchSalesSummary = async () => {
 
 
 const fetchProducts = async () => {
+  loading.value = true; // Set loading to true when starting the request
   try {
     const response = await api.get("products/");
     products.value = response.data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); 
-    
   } catch (error) {
-
+    $q.notify({
+      type: 'negative',
+      message: 'Failed to load products'
+    });
+  } finally {
+    loading.value = false; // Set loading to false when done
   }
 };
 
@@ -168,19 +176,19 @@ const confirmDelete = async () => {
 
 onMounted(async () => {
   try {
-    // Fetch products, categories, and sales summary
+    initialLoading.value = true;
     await Promise.all([
       fetchProducts(),
       fetchCategories(),
       fetchSalesSummary()
     ]);
     
-    // Fetch shop info and set shopId
     const shopInfoRes = await api.get("shop/info/");
     shopId.value = shopInfoRes.data.shop_id;
   } catch (error) {
-    console.error("Error during initialization:", error);
     $q.notify({ type: 'negative', message: 'Error initializing data.' });
+  } finally {
+    initialLoading.value = false;
   }
 });
 
@@ -189,6 +197,11 @@ onMounted(async () => {
 <template>
 
     <div class="q-pa-md">
+      <!-- Add this at the top of your template -->
+<q-inner-loading :showing="initialLoading">
+  <q-spinner-gears size="50px" color="primary" />
+  <p class="text-primary q-mt-sm">Loading application data...</p>
+</q-inner-loading>
   <!-- Sales Summary Cards -->
   <div class="q-my-md q-gutter-md row justify-between">
       <q-card v-for="(stat, index) in [
@@ -238,6 +251,12 @@ onMounted(async () => {
 
 
     <q-table :rows="products" :columns="columns" row-key="id" :filter="filter" class="custom-table">
+      <template v-slot:loading>
+    <q-inner-loading showing color="primary">
+      <q-spinner-gears size="50px" color="primary" />
+      <p class="text-primary q-mt-sm">Loading products...</p>
+    </q-inner-loading>
+  </template>
       <template v-slot:body="props">
         <q-tr :props="props">
           <q-td v-for="col in props.cols" :key="col.name">
