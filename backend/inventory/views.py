@@ -283,7 +283,7 @@ def loginView(request):
             action='LOGIN',
             user=user,  # Explicitly pass the authenticated user
             details={
-                'description': f"User '{username}' logged in",  # Add description
+                'description': f"{username} logged in",  # Add description
                 'username': username,
                 'shop_name': shop_name,
                 'role': group_name
