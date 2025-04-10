@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Product, Sale, Category
+from .models import Product, Sale, Category, AuditLog
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
@@ -27,5 +27,14 @@ class SaleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Sale
         fields = "__all__"
+
+
+class AuditLogSerializer(serializers.ModelSerializer):
+    user = serializers.StringRelatedField() 
+    action_display = serializers.CharField(source='get_action_display')  # Human-readable action
+
+    class Meta:
+        model = AuditLog
+        fields = ['id', 'user', 'action', 'action_display', 'model', 'object_id', 'details', 'ip_address', 'timestamp']
 
 

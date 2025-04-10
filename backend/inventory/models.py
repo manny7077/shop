@@ -1,6 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
-
+from django.utils import timezone
 # Create your models here
 
 class Shop(models.Model):
@@ -59,3 +59,28 @@ class StockAlert(models.Model):
 
     def __str__(self):
         return f"Alert for {self.product.name} (Threshold: {self.threshold})"
+
+
+
+class AuditLog(models.Model):
+    ACTION_CHOICES = [
+        ('LOGIN', 'User login'),
+        ('LOGOUT', 'User logout'),
+        ('CREATE', 'Create operation'),
+        ('UPDATE', 'Update operation'),
+        ('DELETE', 'Delete operation'),
+        ('VIEW', 'View operation'),
+        ('SALE', 'Sale operation'),
+        ('HOMEPAGE', 'Viewed homepage'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    action = models.CharField(max_length=10, choices=ACTION_CHOICES)
+    model = models.CharField(max_length=50, null=True, blank=True)
+    object_id = models.CharField(max_length=50, null=True, blank=True)
+    details = models.JSONField(default=dict)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    timestamp = models.DateTimeField(default=timezone.now)
+
+    def __str__(self):
+        return f"{self.user} - {self.get_action_display()} - {self.model or ''} - {self.timestamp}"

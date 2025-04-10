@@ -63,17 +63,15 @@ const fetchSalesSummary = async () => {
 
 
 const fetchProducts = async () => {
-  loading.value = true; // Set loading to true when starting the request
+  console.log('fetchProducts called at:', new Date().toISOString());
+  loading.value = true;
   try {
     const response = await api.get("products/");
-    products.value = response.data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); 
+    products.value = response.data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   } catch (error) {
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to load products'
-    });
+    $q.notify({ type: 'negative', message: 'Failed to load products' });
   } finally {
-    loading.value = false; // Set loading to false when done
+    loading.value = false;
   }
 };
 
@@ -177,12 +175,7 @@ const confirmDelete = async () => {
 onMounted(async () => {
   try {
     initialLoading.value = true;
-    await Promise.all([
-      fetchProducts(),
-      fetchCategories(),
-      fetchSalesSummary()
-    ]);
-    
+    await Promise.all([fetchProducts(), fetchCategories(), fetchSalesSummary()]);
     const shopInfoRes = await api.get("shop/info/");
     shopId.value = shopInfoRes.data.shop_id;
   } catch (error) {
@@ -234,18 +227,39 @@ onMounted(async () => {
       </q-input>
     </q-toolbar>
 
-    <div class="row q-gutter-sm">
-  <q-btn v-if="isStockClerk||isManager" color="primary" label="Add Product" icon="add" @click="showAddDialog = true" class="q-mb-md" />
-  <q-btn 
-    v-if="isSalesPerson||isManager"
-    color="primary" 
-    label="Sell Product" 
-    icon="shopping_cart" 
-    :disable="products.length === 0"
-    @click="openSaleDialog(products[0])"
-    class="q-mb-md"
-  />
+    <div class="row items-center q-mb-md">
+  <div class="row q-gutter-sm col-auto">
+    <q-btn 
+      v-if="isStockClerk || isManager"
+      color="primary"
+      label="Add Product"
+      icon="add"
+      @click="showAddDialog = true"
+    />
+    <q-btn 
+      v-if="isSalesPerson || isManager"
+      color="primary"
+      label="Sell Product"
+      icon="shopping_cart"
+      :disable="products.length === 0"
+      @click="openSaleDialog(products[0])"
+    />
+  </div>
+
+  <q-space />
+
+  <div class="col-auto">
+    <q-btn 
+      v-if="isManager"
+      color="primary"
+      label="View Audit Logs"
+      icon="history"
+      @click="$router.push('/audit')"
+
+    />
+  </div>
 </div>
+
 
 
 
@@ -358,6 +372,7 @@ onMounted(async () => {
   <SaleDialog
   v-model="showSaleDialog"
   :product="selectedProduct"
+  :products = "products"
   @saleRecorded="fetchProducts"
 />
 

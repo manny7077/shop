@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Product, Sale, Category, StockAlert, Shop
+from .models import Product, Sale, Category, StockAlert, Shop, AuditLog
 # Register your models here.
 
 
@@ -11,3 +11,4 @@ class CategoryAdmin(admin.ModelAdmin):
 
 admin.site.register(StockAlert)
 admin.site.register(Shop)
+admin.site.register(AuditLog)

@@ -5,7 +5,7 @@
           <q-avatar size="80px" class="bg-primary text-white">
             <q-icon name="inventory_2" size="50px" />
           </q-avatar>
-          <div class="text-h5 text-primary q-mt-md">Inventory System</div>
+          <div class="text-h5 text-primary q-mt-md">Gracehour Cosmetics</div>
           <div class="text-caption text-grey-7">Login to manage your stock & sales</div>
         </q-card-section>
   

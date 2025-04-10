@@ -1,84 +1,80 @@
 <template>
-    <div class="q-pa-md">
-      <q-toolbar class="text-primary q-pb-md">
-        <q-btn flat round dense icon="shopping_cart" />
-        <q-toolbar-title>
-          <span class="text-weight-bold">Record a Sale</span>
-        </q-toolbar-title>
-        <q-space />
-      </q-toolbar>
-  
-      <q-card class="q-pa-md">
-        <q-card-section>
-          <div class="text-h6 text-primary">Record a Sale</div>
-        </q-card-section>
-  
-        <q-card-section>
-          <q-form @submit.prevent="recordSale">
-            <div v-for="(item, index) in sales" :key="index" class="q-mb-md q-gutter-sm row">
-              <q-select
-                v-model="item.product"
-                label="Select Product"
-                :options="products.map(p => ({ label: p.name, value: p.id }))"
-                option-value="value"
-                option-label="label"
-                emit-value
-                map-options
-                outlined
-                class="col-5"
-                @update:model-value="updateStock(index, item.product)"
-              />
-              
-              <q-btn icon="delete" color="negative" flat @click="removeItem(index)" class="col-1" />
-            </div>
-  
-            <q-card-actions align="right">
-              <q-btn label="Add Another Item" color="secondary" @click="addItem" />
-              <q-btn type="submit" label="Complete Sale" color="primary" />
-            </q-card-actions>
-          </q-form>
-        </q-card-section>
-      </q-card>
-    </div>
-  </template>
-  
+  <div class="q-pa-md">
+    <q-toolbar class="text-primary q-pb-md">
+      <q-btn flat round dense icon="shopping_cart" />
+      <q-toolbar-title>
+        <span class="text-weight-bold">Record a Sale</span>
+      </q-toolbar-title>
+      <q-space />
+    </q-toolbar>
+
+    <q-card class="q-pa-md">
+      <q-card-section>
+        <div class="text-h6 text-primary">Record a Sale</div>
+      </q-card-section>
+
+      <q-card-section>
+        <q-form @submit.prevent="recordSale">
+          <div v-for="(item, index) in sales" :key="index" class="q-mb-md q-gutter-sm row">
+            <q-select
+              v-model="item.product"
+              label="Select Product"
+              :options="products.map(p => ({ label: p.name, value: p.id }))"
+              option-value="value"
+              option-label="label"
+              emit-value
+              map-options
+              outlined
+              class="col-5"
+              @update:model-value="updateStock(index, item.product)"
+            />
+            <q-btn icon="delete" color="negative" flat @click="removeItem(index)" class="col-1" />
+          </div>
+
+          <q-card-actions align="right">
+            <q-btn label="Add Another Item" color="secondary" @click="addItem" />
+            <q-btn type="submit" label="Complete Sale" color="primary" />
+          </q-card-actions>
+        </q-form>
+      </q-card-section>
+    </q-card>
+  </div>
+</template>
+
 <script setup>
 import { ref, onMounted } from "vue";
 import { api } from "src/boot/axios";
 
-// Reactive variables
+defineProps({
+  product: Object,  // Existing prop for selected product
+  products: Array   // New prop for product list
+});
+
 const sales = ref([{ product: null, quantity_sold: 1 }]);
-const products = ref([]);
 const selectedProductStock = ref([]);
-const shopId = ref(null);  // Store shop ID from the new endpoint
-const shopName = ref(null);  // Store shop name from the new endpoint
+const shopId = ref(null);
+const shopName = ref(null);
+
 const fetchSalesSummary = async () => {
   try {
-
-
-    // Fetch sales counts (daily, weekly, monthly)
     const salesCountsResponse = await api.get("sales/counts/");
-    salesCounts.value = salesCountsResponse.data || { daily_sales: 0, weekly_sales: 0, monthly_sales: 0 };
+    // Handle sales counts if needed in SaleDialog
   } catch (error) {
     console.error("Error fetching sales summary:", error);
   }
 };
 
-// Fetch shop info when the component is mounted
 onMounted(async () => {
   try {
-    const shopInfoRes = await api.get("shop/info/");  // Call the new view to get shop details
-    shopId.value = shopInfoRes.data.shop_id;  // Store the shop ID
-    shopName.value = shopInfoRes.data.shop_name;  // Store the shop name
-
-    const res = await api.get("products/");
-    products.value = res.data;
+    const shopInfoRes = await api.get("shop/info/");
+    shopId.value = shopInfoRes.data.shop_id;
+    shopName.value = shopInfoRes.data.shop_name;
   } catch (error) {
     console.error("Error fetching shop info:", error.response?.data?.error || error.message);
   }
+  fetchSalesSummary();  // Keep this if you need sales summary here
 });
 
-// Other methods
 const updateStock = (index, productId) => {
   const product = products.value.find(p => p.id === productId);
   selectedProductStock.value[index] = product ? product.quantity : null;
@@ -96,7 +92,7 @@ const removeItem = (index) => {
 const recordSale = async () => {
   try {
     const saleData = {
-      shop: shopId.value,  // Use the shop field instead of shop_id
+      shop: shopId.value,
       sales: sales.value.map(item => ({
         product_id: item.product,
         quantity: item.quantity_sold
@@ -107,16 +103,10 @@ const recordSale = async () => {
     console.error(error.response?.data?.error || "Error processing sale");
   }
 };
-onMounted(() => {
-
-  fetchSalesSummary();
-});
 </script>
 
-  
-  <style scoped>
-  .q-toolbar-title {
-    font-size: 18px;
-  }
-  </style>
-  
+<style scoped>
+.q-toolbar-title {
+  font-size: 18px;
+}
+</style>

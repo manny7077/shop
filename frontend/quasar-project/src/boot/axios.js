@@ -20,6 +20,14 @@ const api = axios.create({
     'Accept': 'application/json'
   }
 })
+// const api = axios.create({
+//   baseURL: process.env.API_BASE_URL || 'http://127.0.0.1:8000/api/',
+//   timeout: 10000, // 10 second timeout
+//   headers: {
+//     'Content-Type': 'application/json',
+//     'Accept': 'application/json'
+//   }
+// })
 
 // Request interceptor for auth token
 api.interceptors.request.use(

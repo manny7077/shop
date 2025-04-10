@@ -3,8 +3,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework import status
 from django.shortcuts import get_object_or_404
-from .models import Product, Sale, Category, Shop
-from .serializers import ProductSerializer, SaleSerializer, CategorySerializer, ProductViewSerializer
+from .models import Product, Sale, Category, Shop, AuditLog
+from .serializers import ProductSerializer, SaleSerializer, CategorySerializer, ProductViewSerializer, AuditLogSerializer
 from django.db.models import Sum
 from django.utils.timezone import now, timedelta
 from django.contrib.auth import authenticate
@@ -12,19 +12,32 @@ from rest_framework.authtoken.models import Token
 from decimal import Decimal
 from rest_framework.permissions import IsAuthenticated
 from .permissions import IsManager, IsStockClerk, IsSalesPerson
-
+from .utils.audit_logger import log_action
 # Create your views here.
 
 
 
-# ✅ List all products / Add a new product
+# ✅ List all products 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])  
+@permission_classes([IsAuthenticated])
 def listProducts(request):
     user = request.user
     shop = get_object_or_404(Shop, owner=user)
     products = Product.objects.filter(shop=shop)
     serializer = ProductViewSerializer(products, many=True)
+
+    log_action(
+        request,
+        action='VIEW',
+        model='Product',
+        details={
+            'description': f"{user.username} viewed homepage for {shop.name}",
+            'shop_id': shop.id,
+            'product_count': products.count(),
+            'context': 'homepage'
+        }
+    )
+
     return Response(serializer.data)
 
     
@@ -40,14 +53,30 @@ def listCategories(request):
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated, IsManager | IsStockClerk])  
+@permission_classes([IsAuthenticated, IsManager | IsStockClerk])
 def createProduct(request):
     user = request.user
     shop = get_object_or_404(Shop, owner=user)
 
     serializer = ProductSerializer(data=request.data)
     if serializer.is_valid():
-        serializer.save(shop=shop)
+        product = serializer.save(shop=shop)
+
+        log_action(
+            request,
+            action='CREATE',
+            user=user,
+            model='Product',
+            object_id=str(product.id),
+            details={
+                'description': f"{user.username} added {product.name} for {shop.name}",
+                'product_name': product.name,
+                'quantity': product.quantity,
+                'price': str(product.price),
+                'shop': shop.name
+            }
+        )
+
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -65,70 +94,134 @@ def productDetail(request, product_id):
         return Response(serializer.data)
 
     
-@api_view(["PUT"])  
-@permission_classes([IsAuthenticated, IsManager | IsStockClerk])    
+@api_view(["PUT"])
+@permission_classes([IsAuthenticated, IsManager | IsStockClerk])
 def editProduct(request, product_id):
-    product = get_object_or_404(Product, id=product_id, shop__owner=request.user)
+    user = request.user
+    product = get_object_or_404(Product, id=product_id, shop__owner=user)
+    
+    # Capture old values before updating
+    old_data = ProductSerializer(product).data
+    
+    serializer = ProductSerializer(product, data=request.data)
+    if serializer.is_valid():
+        serializer.save()
 
-    if request.method == "PUT":
-        serializer = ProductSerializer(product, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        # Compare old and new values
+        new_data = serializer.data
+        changes = {k: {'from': old_data[k], 'to': new_data[k]} 
+                  for k in old_data if old_data[k] != new_data[k]}
+
+        # Generate a specific description based on changes
+        change_descriptions = []
+        for field, change in changes.items():
+            if field == 'price':
+                change_descriptions.append(f"price from GHS {change['from']} to GHS {change['to']}")
+            elif field == 'quantity':
+                change_descriptions.append(f"quantity from {change['from']} to {change['to']}")
+            elif field == 'name':
+                change_descriptions.append(f"name from {change['from']} to {change['to']}")
+            elif field == 'category':  # Assuming category is an ID or name
+                change_descriptions.append(f"category from {change['from']} to {change['to']}")
+
+        
+        # Combine changes into a single description
+        if change_descriptions:
+            description = f"{user.username} updated {', '.join(change_descriptions)} for {product.name}"
+        else:
+            description = f"{user.username} made no changes to {product.name}"  # Rare case
+
+        log_action(
+            request,
+            action='UPDATE',
+            user=user,
+            model='Product',
+            object_id=str(product_id),
+            details={
+                'description': description,
+                'product_name': product.name,
+                'shop': product.shop.name,
+                'changes': changes  # Keep raw changes for reference
+            }
+        )
+
+        return Response(serializer.data)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(["DELETE"])
-@permission_classes([IsAuthenticated, IsManager | IsStockClerk])  
+@permission_classes([IsAuthenticated, IsManager | IsStockClerk])
 def deleteProduct(request, product_id):
+    user = request.user
     product = get_object_or_404(Product, id=product_id, shop__owner=request.user)
 
-    if request.method == "DELETE":
-        product.delete()
-        return Response({"message": "Product deleted"}, status=status.HTTP_204_NO_CONTENT)
+    log_action(
+        request,
+        action='DELETE',
+        user=user,
+        model='Product',
+        object_id=str(product_id),
+        details={
+            'description': f"{user.username}deleted {product.name} for {product.shop.name}",
+            'name': product.name,
+            'shop_id': product.shop.id,
+            'shop': product.shop.name
+        }
+    )
+
+    product.delete()
+    return Response({"message": "Product deleted"}, status=status.HTTP_204_NO_CONTENT)
 
 
 # ✅ Record a sale and update stock
 @api_view(["POST"])
 @permission_classes([IsAuthenticated, IsManager | IsSalesPerson])
 def recordSale(request):
-    # Fetch the logged-in user's shop
-    shop = get_object_or_404(Shop, owner=request.user)
-    sales_data = request.data.get("sales", [])  # The sale items sent from frontend
+    user = request.user
+    shop = get_object_or_404(Shop, owner=user)
+    sales_data = request.data.get("sales", [])
 
     if not sales_data:
         return Response({"error": "No sales data provided"}, status=status.HTTP_400_BAD_REQUEST)
 
     response_data = []
     for sale in sales_data:
-        product_id = sale.get("product_id")  
-        quantity = sale.get("quantity")  
+        product_id = sale.get("product_id")
+        quantity = sale.get("quantity")
 
         if not product_id or not quantity:
             return Response({"error": "Product ID and quantity are required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            # Find the product linked to the sale
-            product = get_object_or_404(Product, id=product_id, shop=shop)
-            
-            # Prepare sale data including the shop field
-            sale_data = {
-                "shop": shop.id,  # Explicitly include the shop ID here
-                "product": product_id,
-                "quantity_sold": quantity,
-                "total_price": Decimal(quantity) * product.price
-            }
+        product = get_object_or_404(Product, id=product_id, shop=shop)
+        sale_data = {
+            "shop": shop.id,
+            "product": product_id,
+            "quantity_sold": quantity,
+            "total_price": Decimal(quantity) * product.price
+        }
 
-            # Serialize and save the sale record
-            serializer = SaleSerializer(data=sale_data)
-            if serializer.is_valid():
-                serializer.save()
-                response_data.append(serializer.data)
-            else:
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer = SaleSerializer(data=sale_data)
+        if serializer.is_valid():
+            sale_instance = serializer.save()
 
-        except ValueError as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            log_action(
+                request,
+                action='SALE',
+                user=user,
+                model='Sale',
+                object_id=str(sale_instance.id),
+                details={
+                    'description': f"{user.username} sold {quantity} of {product.name} for {shop.name}",
+                    'product_name': product.name,
+                    'quantity': quantity,
+                    'total_price': str(sale_instance.total_price),
+                    'shop': shop.name
+                }
+            )
+
+            response_data.append(serializer.data)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     return Response(response_data, status=status.HTTP_201_CREATED)
 
@@ -177,16 +270,25 @@ def loginView(request):
 
     if user:
         token, _ = Token.objects.get_or_create(user=user)
-        group_name = None
-        if user.groups.exists():
-            # Get the first group name (assuming users belong to only one group)
-            group_name = user.groups.first().name
+        group_name = user.groups.first().name if user.groups.exists() else None
 
         try:
             shop = Shop.objects.get(owner=user)
             shop_name = shop.name
         except Shop.DoesNotExist:
             shop_name = None
+
+        log_action(
+            request,
+            action='LOGIN',
+            user=user,  # Explicitly pass the authenticated user
+            details={
+                'description': f"User '{username}' logged in",  # Add description
+                'username': username,
+                'shop_name': shop_name,
+                'role': group_name
+            }
+        )
 
         return Response({
             "token": token.key,
@@ -204,13 +306,13 @@ def loginView(request):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def logoutView(request):
-    """Logout user by deleting the token"""
-    try:
-        # Delete the token associated with the current user
-        request.user.auth_token.delete()
-        return Response({"message": "Logged out successfully"})
-    except Exception as e:
-        return Response({"error": str(e)}, status=400)
+    log_action(
+        request,
+        action='LOGOUT',
+        details={'username': request.user.username}
+    )
+    request.user.auth_token.delete()
+    return Response({"message": "Logged out successfully"})
     
 
 @api_view(["GET"])
@@ -227,3 +329,16 @@ def getShopInfo(request):
         })
     except Shop.DoesNotExist:
         return Response({"error": "No shop found for the logged-in user"}, status=404)
+    
+
+
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated, IsManager])  # Restrict to managers only
+def auditLogList(request):
+    # Fetch all logs, ordered by timestamp (most recent first)
+    logs = AuditLog.objects.all().order_by('-timestamp')
+    
+    serializer = AuditLogSerializer(logs, many=True)
+    return Response(serializer.data)
