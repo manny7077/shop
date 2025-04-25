@@ -48,7 +48,9 @@ class Sale(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"Sale: {self.quantity_sold} x {self.product.name} on {self.created_at}"
+        product_name = self.product.name if self.product else "Unknown Product"
+        return f"Sale: {self.quantity_sold} x {product_name} on {self.created_at}"
+
 
 
 
