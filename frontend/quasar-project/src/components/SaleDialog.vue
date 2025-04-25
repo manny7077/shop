@@ -59,7 +59,7 @@ const recordSale = async () => {
     $q.notify({ message: "Product sold successfully!", color: "positive", icon: "check" });
 
     emit("saleRecorded");
-    emit("update:modelValue", false);
+    emit("update:modelValue", false); 
   } catch (error) {
     if (error.response?.data?.error) {
       $q.notify({ message: error.response.data.error, color: "negative" });

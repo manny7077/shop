@@ -33,7 +33,7 @@ class Product(models.Model):
 
 class Sale(models.Model):
     shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name="sales")  # NEW
-    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True, blank=True)
     quantity_sold = models.PositiveIntegerField()
     total_price = models.DecimalField(max_digits=10, decimal_places=2)
     created_at = models.DateTimeField(auto_now_add=True)

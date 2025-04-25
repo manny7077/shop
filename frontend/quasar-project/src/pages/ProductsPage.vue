@@ -46,7 +46,12 @@ const salesCounts = ref({ daily_sales: 0, weekly_sales: 0, monthly_sales: 0 });
 const shopId = ref(null);  
 
 
+const handleSaleRecorded = () => {
+  // Refresh sales summary and products after a sale
+  fetchSalesSummary();
+  fetchProducts()
 
+};
 
 const fetchSalesSummary = async () => {
   try {
@@ -370,11 +375,11 @@ onMounted(async () => {
   </q-dialog>
 
   <SaleDialog
-  v-model="showSaleDialog"
-  :product="selectedProduct"
-  :products = "products"
-  @saleRecorded="fetchProducts"
-/>
+      v-model="showSaleDialog"
+      :product="selectedProduct"
+      :products="products"
+      @sale-recorded="handleSaleRecorded"
+    />
 
 
 </template>
