@@ -1,7 +1,7 @@
 import os
 import openpyxl
 from django.core.management.base import BaseCommand
-from inventory.models import Product  # Adjust based on your actual app name
+from inventory.models import Product  
 
 class Command(BaseCommand):
     help = "Import products from an Excel file"
@@ -31,10 +31,10 @@ class Command(BaseCommand):
                 product, created = Product.objects.get_or_create(
                     name=name.strip(),
                     defaults={
-                        "category_id": 11,  # Assign category ID 1
+                        "category_id": 1,  # Assign category ID 1
                         "quantity": int(quantity),
                         "price": float(price),
-                        "shop_id": 3
+                        "shop_id": 2
                     }
                 )
 
